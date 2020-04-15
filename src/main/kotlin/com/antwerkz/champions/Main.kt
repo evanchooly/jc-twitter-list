@@ -34,50 +34,49 @@ class TwitterScrape {
         twitter = tf.instance
     }
 
-    fun jcFollows(): List<Account> {
+    fun jcFollows(): List<String> {
         return loadList(File("twitter.list")) { cursor: Long ->
             twitter.getFriendsList("Java_Champions", cursor)
-        }
+        }.sorted()
     }
 
-    private fun loadList(cacheFile: File, loader: Function1<Long, PagableResponseList<User>>): List<Account> {
+    private fun loadList(cacheFile: File, loader: Function1<Long, PagableResponseList<User>>): List<String> {
         val mapper = ObjectMapper().registerModule(KotlinModule())
         val between = between(ofEpochMilli(cacheFile.lastModified()), Instant.now())
-        val list = mutableListOf<Account>()
-        if (!cacheFile.exists() || between.toDays() > 3) {
+        val list = mutableListOf<String>()
+        if (!cacheFile.exists() || between.toMinutes() >= 15) {
             var cursor: Long = -1
             while (cursor != 0L) {
                 val followers = loader(cursor)
                 for (follower in followers) {
-                    list += Account(follower.name, follower.screenName)
+                    list += follower.screenName
                 }
                 cursor = followers.nextCursor
             }
 
             mapper.writer().writeValues(cacheFile).writeAll(list)
         } else {
-            list += mapper.readerFor(Account::class.java)
-                .readValues<Account>(cacheFile.toURI().toURL())
+            list += mapper.readerFor(String::class.java)
+                .readValues<String>(cacheFile.toURI().toURL())
                 .readAll()
         }
 
         return list
+            .sorted()
     }
 
-    fun updateList(jcs: MutableList<Account>) {
+    fun updateList(jcs: List<String>) {
         val list = loadList(list_members) { cursor: Long ->
-            twitter.getUserListMembers("evanchooly", "java-champions", cursor)
+            twitter.getUserListMembers("evanchooly", "java-champions", 500, cursor)
         }
-        val intersect = list.intersect(jcs)
-
-        jcs.removeAll(list)
-        var newFollows = jcs.map { it.twitter }
-            .filter { it != "" }
+        val newFollows = jcs.map { it.toLowerCase() }
+            .subtract(list.map { it.toLowerCase() })
             .chunked(100)
 
         if(newFollows.isNotEmpty()) {
             list_members.delete()
         }
+
         println("newFollows = ${newFollows}")
         newFollows.forEach {
             twitter.createUserListMembers("evanchooly", "java-champions", *it.toTypedArray())
@@ -88,16 +87,18 @@ class TwitterScrape {
 data class Account(val name: String, val twitter: String) {}
 
 class GitScrape {
-    fun list(): MutableList<Account> {
+    fun list(): List<String> {
         val target = File("target/jcs")
         if (!target.exists()) {
             Git.cloneRepository()
                 .setURI("https://github.com/aalmiray/java-champions")
                 .setDirectory(target)
                 .call()
+        } else {
+            Git.open(target).pull()
         }
 
-        val jcs = mutableListOf<Account>()
+        val jcs = mutableListOf<String>()
         val doc = File(target, "README.adoc").readLines().toMutableList()
         while(doc.isNotEmpty()) {
             if(doc[0] == "|{counter:idx}") {
@@ -107,37 +108,37 @@ class GitScrape {
             }
         }
 
+
         return jcs
+            .filter { it != "" }
+            .sorted()
     }
 
-    private fun readAccount(doc: MutableList<String>): Account {
-        doc.delete(2)
-        val name = extract(doc.removeAt(0))
-        val twitter = extract(doc.removeAt(0)).substringAfter("@")
+    private fun readAccount(doc: MutableList<String>): String {
+        doc.delete(3)
 
-        return Account(name, twitter)
+        return doc.removeAt(0).extract().substringAfter("@")
     }
 }
 
-fun extract(entry: String): String {
-    return entry.substring(1).substringAfter("[").substringBefore("]")
+fun String.extract(): String {
+    return substring(1).substringAfter("[").substringBefore("]")
 }
 
 fun MutableList<String>.delete(count: Int) = (1..count).forEach{ this.removeAt(0) }
 
 fun main() {
     val twitter = TwitterScrape()
-    val follows = twitter.jcFollows()
-        .map { it.twitter to it.name }
-        .toMap()
 
     val jcs = GitScrape().list()
-    val notFollowed = jcs.filter { it.twitter != "" }
-        .filter { it.twitter !in follows }
-        .sortedBy { it.twitter }
-
-    println("not followed = ${notFollowed.map { it.twitter }}")
-
     twitter.updateList(jcs)
+
+    val follows = twitter.jcFollows()
+    val notFollowed = jcs
+        .filter { it !in follows }
+        .sortedBy { it }
+
+    println("not followed = ${notFollowed}")
+
 }
 
