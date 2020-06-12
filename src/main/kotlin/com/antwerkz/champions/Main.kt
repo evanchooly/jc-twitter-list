@@ -14,6 +14,7 @@ import java.time.Duration.between
 import java.time.Instant
 import java.time.Instant.ofEpochMilli
 import java.util.Properties
+import java.util.SortedSet
 
 
 private val list_members = File("java-champions.list")
@@ -40,7 +41,7 @@ class TwitterScrape {
         }.sorted()
     }
 
-    private fun loadList(cacheFile: File, loader: Function1<Long, PagableResponseList<User>>): List<String> {
+    internal fun loadList(cacheFile: File, loader: Function1<Long, PagableResponseList<User>>): List<String> {
         val mapper = ObjectMapper().registerModule(KotlinModule())
         val between = between(ofEpochMilli(cacheFile.lastModified()), Instant.now())
         val list = mutableListOf<String>()
@@ -65,10 +66,11 @@ class TwitterScrape {
             .sorted()
     }
 
-    fun updateList(jcs: List<String>) {
+    fun updateList(jcs: Set<String>): List<String> {
         val list = loadList(list_members) { cursor: Long ->
             twitter.getUserListMembers("evanchooly", "java-champions", 500, cursor)
-        }
+        }.toSortedSet()
+
         val newFollows = jcs.map { it.toLowerCase() }
             .subtract(list.map { it.toLowerCase() })
             .chunked(100)
@@ -77,17 +79,18 @@ class TwitterScrape {
             list_members.delete()
         }
 
-        println("newFollows = ${newFollows}")
         newFollows.forEach {
             twitter.createUserListMembers("evanchooly", "java-champions", *it.toTypedArray())
         }
+
+        return newFollows.flatten()
     }
 }
 
 data class Account(val name: String, val twitter: String) {}
 
 class GitScrape {
-    fun list(): List<String> {
+    fun list(): SortedSet<String> {
         val target = File("target/jcs")
         if (!target.exists()) {
             Git.cloneRepository()
@@ -111,7 +114,7 @@ class GitScrape {
 
         return jcs
             .filter { it != "" }
-            .sorted()
+            .toSortedSet()
     }
 
     private fun readAccount(doc: MutableList<String>): String {
@@ -131,14 +134,9 @@ fun main() {
     val twitter = TwitterScrape()
 
     val jcs = GitScrape().list()
-    twitter.updateList(jcs)
 
-    val follows = twitter.jcFollows()
-    val notFollowed = jcs
-        .filter { it !in follows }
-        .sortedBy { it }
+    val notFollowed =twitter.updateList(jcs)
 
     println("not followed = ${notFollowed}")
-
 }
 
