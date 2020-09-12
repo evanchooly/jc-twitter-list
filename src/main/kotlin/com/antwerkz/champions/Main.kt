@@ -1,142 +1,100 @@
 package com.antwerkz.champions
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
-import org.eclipse.jgit.api.Git
-import twitter4j.PagableResponseList
-import twitter4j.Twitter
-import twitter4j.TwitterFactory
-import twitter4j.User
-import twitter4j.conf.ConfigurationBuilder
-import java.io.File
 import java.io.FileInputStream
-import java.time.Duration.between
-import java.time.Instant
-import java.time.Instant.ofEpochMilli
 import java.util.Properties
-import java.util.SortedSet
-
-
-private val list_members = File("java-champions.list")
-
-class TwitterScrape {
-    val twitter: Twitter
-
-    init {
-        val properties = Properties()
-        properties.load(FileInputStream("twitter.properties"))
-        val cb = ConfigurationBuilder()
-        cb.setDebugEnabled(true)
-            .setOAuthConsumerKey(properties.getProperty("api_key"))
-            .setOAuthConsumerSecret(properties.getProperty("api_key_secret"))
-            .setOAuthAccessToken(properties.getProperty("access_token"))
-            .setOAuthAccessTokenSecret(properties.getProperty("access_token_secret"))
-        val tf = TwitterFactory(cb.build())
-        twitter = tf.instance
-    }
-
-    fun jcFollows(): List<String> {
-        return loadList(File("twitter.list")) { cursor: Long ->
-            twitter.getFriendsList("Java_Champions", cursor)
-        }.sorted()
-    }
-
-    internal fun loadList(cacheFile: File, loader: Function1<Long, PagableResponseList<User>>): List<String> {
-        val mapper = ObjectMapper().registerModule(KotlinModule())
-        val between = between(ofEpochMilli(cacheFile.lastModified()), Instant.now())
-        val list = mutableListOf<String>()
-        if (!cacheFile.exists() || between.toMinutes() >= 15) {
-            var cursor: Long = -1
-            while (cursor != 0L) {
-                val followers = loader(cursor)
-                for (follower in followers) {
-                    list += follower.screenName
-                }
-                cursor = followers.nextCursor
-            }
-
-            mapper.writer().writeValues(cacheFile).writeAll(list)
-        } else {
-            list += mapper.readerFor(String::class.java)
-                .readValues<String>(cacheFile.toURI().toURL())
-                .readAll()
-        }
-
-        return list
-            .sorted()
-    }
-
-    fun updateList(jcs: Set<String>): List<String> {
-        val list = loadList(list_members) { cursor: Long ->
-            twitter.getUserListMembers("evanchooly", "java-champions", 500, cursor)
-        }.toSortedSet()
-
-        val newFollows = jcs.map { it.toLowerCase() }
-            .subtract(list.map { it.toLowerCase() })
-            .chunked(100)
-
-        if(newFollows.isNotEmpty()) {
-            list_members.delete()
-        }
-
-        newFollows.forEach {
-            twitter.createUserListMembers("evanchooly", "java-champions", *it.toTypedArray())
-        }
-
-        return newFollows.flatten()
-    }
-}
-
-data class Account(val name: String, val twitter: String) {}
-
-class GitScrape {
-    fun list(): SortedSet<String> {
-        val target = File("target/jcs")
-        if (!target.exists()) {
-            Git.cloneRepository()
-                .setURI("https://github.com/aalmiray/java-champions")
-                .setDirectory(target)
-                .call()
-        } else {
-            Git.open(target).pull()
-        }
-
-        val jcs = mutableListOf<String>()
-        val doc = File(target, "README.adoc").readLines().toMutableList()
-        while(doc.isNotEmpty()) {
-            if(doc[0] == "|{counter:idx}") {
-                jcs += readAccount(doc)
-            } else {
-                doc.delete(1)
-            }
-        }
-
-
-        return jcs
-            .filter { it != "" }
-            .toSortedSet()
-    }
-
-    private fun readAccount(doc: MutableList<String>): String {
-        doc.delete(3)
-
-        return doc.removeAt(0).extract().substringAfter("@")
-    }
-}
-
-fun String.extract(): String {
-    return substring(1).substringAfter("[").substringBefore("]")
-}
-
-fun MutableList<String>.delete(count: Int) = (1..count).forEach{ this.removeAt(0) }
 
 fun main() {
-    val twitter = TwitterScrape()
+    Main().report()
 
-    val jcs = GitScrape().list()
-
-    val notFollowed =twitter.updateList(jcs)
-
-    println("not followed = ${notFollowed}")
 }
 
+class Main {
+    private val properties = Properties()
+    private val twitter: TwitterScrape
+    private val git = GitScrape()
+
+    init {
+        loadProperties()
+        twitter = TwitterScrape(properties)
+    }
+
+    fun report() {
+        val jcs = git.loadJCs()
+        val notFollowed = twitter.updateList(jcs)
+        val list = twitter.loadJCList()
+
+        nonJCAccounts()
+
+        println("\nAccounts Not Followed:")
+        println("----------------------")
+        println(notFollowed.joinToString("\n"))
+
+        println("\nCurrent Membership")
+        println("------------------")
+        list.forEach {
+            println("${it.key}:  ${it.value}")
+        }
+
+
+//    downloadMap(jcs)
+    }
+
+    private fun loadProperties() {
+        properties.load(FileInputStream("twitter.properties"))
+    }
+
+    private fun nonJCAccounts() {
+        val twitterMembers = twitter.loadJCList()
+        val gitMembers = git.loadJCs()
+        val erroneous = twitterMembers.values.filterNot { it in gitMembers.keys }
+        println("Accounts on twitter but not in git:")
+        println("-----------------------------------")
+
+        println(erroneous.joinToString("\n"))
+    }
+
+/*
+    fun downloadMap(jcs: Map<String, String>) {
+        val client = OkHttpClient()
+
+        val baseUrl =
+            "https://maps.googleapis.com/maps/api/staticmap?key=${properties.getProperty("maps-api-key")}&size=1024x1024"
+        val locations = jcs.values
+            .filter { it.contains(",") }
+            .map {
+                it.replace(", ", ",")
+                    .replace(' ', '+')
+            }
+            .distinct()
+//        .chunked(15)
+//        .map { .it
+            .joinToString("|")
+//            }
+
+//    locations.forEachIndexed { i, location ->
+        val request = Builder()
+            .method("POST", ("markers=color:red|$locations").toRequestBody("application/text".toMediaType()))
+            .url(baseUrl)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            val body = response.body
+            val content = body!!.bytes()
+            File("target/champions.png").writeBytes(content)
+        }
+//    }
+
+//        val mapsDir = File(jcGitRepo, "maps")
+//        println("mapsDir = ${mapsDir}")
+
+    }
+*/
+
+}
+
+fun MutableList<String>.claim(count: Int): List<String> {
+    val items = mutableListOf<String>()
+    repeat(count) { items += this.removeAt(0) }
+
+    return items
+}
