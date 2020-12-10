@@ -57,7 +57,7 @@ class Main {
     fun downloadMap(jcs: Map<String, String>) {
         val client = OkHttpClient()
 
-        val baseUrl =
+         val baseUrl =
             "https://maps.googleapis.com/maps/api/staticmap?key=${properties.getProperty("maps-api-key")}&size=1024x1024"
         val locations = jcs.values
             .filter { it.contains(",") }
