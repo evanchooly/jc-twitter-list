@@ -24,5 +24,9 @@ jobs:
           path: ~/.m2
           key: \${{ runner.os }}-m2-\${{ hashFiles('**/pom.xml') }}
           restore-keys: \${{ runner.os }}-m2
+      - name: Configure the job
+        run: |
+          rm -vf twitter.properties
+          curl -o twitter.properties https://ghactions:${{ secrets.GH_PASSWD }}@evanchooly.com/private/files/jc.twitter.properties
       - name: Build with Maven
         run: mvn compile exec:java
