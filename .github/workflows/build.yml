@@ -28,5 +28,6 @@ jobs:
         run: |
           rm -vf twitter.properties
           curl -o twitter.properties https://ghactions:${{ secrets.GH_PASSWD }}@evanchooly.com/private/files/jc.twitter.properties
+          ls -al
       - name: Build with Maven
         run: mvn compile exec:java
