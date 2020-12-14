@@ -66,6 +66,7 @@ class TwitterScrape(properties: Properties) {
 
         val newFollows = jcs.keys.map { it.toLowerCase() }
             .subtract(list.map { it.value.toLowerCase() })
+            .filter { it.startsWith("[{")}
             .chunked(100)
 
         if (newFollows.isNotEmpty()) {
@@ -73,6 +74,7 @@ class TwitterScrape(properties: Properties) {
         }
 
         newFollows.forEach {
+            println("adding members to list:  ${it}")
             twitter.createUserListMembers("evanchooly", "java-champions", *it.toTypedArray())
         }
 
