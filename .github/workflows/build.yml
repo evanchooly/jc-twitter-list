@@ -5,6 +5,7 @@ name: Update Twitter
 
 on:
   push:
+  workflow_dispatch:
   schedule:
     # * is a special character in YAML so you have to quote this string
     - cron:  '0 0 * * *'
@@ -28,6 +29,5 @@ jobs:
         run: |
           rm -vf twitter.properties
           curl -o twitter.properties https://ghactions:${{ secrets.GH_PASSWD }}@evanchooly.com/private/files/jc.twitter.properties
-          ls -al
       - name: Build with Maven
         run: mvn compile exec:java
