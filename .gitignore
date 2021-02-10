@@ -2,3 +2,4 @@ twitter.properties
 *.iml
 .idea
 *.list
+target

@@ -64,9 +64,10 @@ class TwitterScrape(properties: Properties) {
     fun updateList(jcs: Map<String, String>): List<String> {
         val list = loadJCList()
 
-        val newFollows = jcs.keys.map { it.toLowerCase() }
+        val newFollows =
+            jcs.keys.map { it.toLowerCase() }
             .subtract(list.map { it.value.toLowerCase() })
-            .filter { it.startsWith("[{")}
+            .filter { it != "{link-jim-gough}" }
             .chunked(100)
 
         if (newFollows.isNotEmpty()) {
