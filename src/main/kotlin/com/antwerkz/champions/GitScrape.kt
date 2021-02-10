@@ -10,10 +10,13 @@ class GitScrape {
         return extract {
             it.claim(3)
             val handle = it.removeAt(0).extract().substringAfter("@")
-            handle to it.claim(2)
+            val pair = handle to it.claim(2)
                 .map { loc -> loc.substring(1).trim() }
                 .filter(String::isNotBlank)
                 .joinToString()
+            it.claim(2)
+
+            pair
         }
     }
 
@@ -23,20 +26,21 @@ class GitScrape {
                 .setURI("https://github.com/aalmiray/java-champions")
                 .setDirectory(jcGitRepo)
                 .call()
+                .close()
         } else {
-            Git.open(jcGitRepo)
+            val open = Git.open(jcGitRepo)
+            val pullResult = open
                 .pull()
                 .call()
+            println("pullResult = ${pullResult}")
+            open.close()
         }
 
         val jcs = mutableMapOf<String, String>()
-        val doc = File(jcGitRepo, "README.adoc").readLines().toMutableList()
+        var doc = File(jcGitRepo, "README.adoc").readLines().toMutableList()
         while (doc.isNotEmpty()) {
-            if (doc[0] == "|{counter:idx}") {
-                jcs += extractor(doc)
-            } else {
-                doc.claim(1)
-            }
+            doc = doc.dropWhile { it != "|{counter:idx}" }.toMutableList()
+            jcs += extractor(doc)
         }
 
 
