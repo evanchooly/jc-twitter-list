@@ -52,44 +52,6 @@ class Main {
 
         println(erroneous.joinToString("\n"))
     }
-
-/*
-    fun downloadMap(jcs: Map<String, String>) {
-        val client = OkHttpClient()
-
-         val baseUrl =
-            "https://maps.googleapis.com/maps/api/staticmap?key=${properties.getProperty("maps-api-key")}&size=1024x1024"
-        val locations = jcs.values
-            .filter { it.contains(",") }
-            .map {
-                it.replace(", ", ",")
-                    .replace(' ', '+')
-            }
-            .distinct()
-//        .chunked(15)
-//        .map { .it
-            .joinToString("|")
-//            }
-
-//    locations.forEachIndexed { i, location ->
-        val request = Builder()
-            .method("POST", ("markers=color:red|$locations").toRequestBody("application/text".toMediaType()))
-            .url(baseUrl)
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            val body = response.body
-            val content = body!!.bytes()
-            File("target/champions.png").writeBytes(content)
-        }
-//    }
-
-//        val mapsDir = File(jcGitRepo, "maps")
-//        println("mapsDir = ${mapsDir}")
-
-    }
-*/
-
 }
 
 fun MutableList<String>.claim(count: Int): List<String> {

@@ -32,7 +32,6 @@ class GitScrape {
             val pullResult = open
                 .pull()
                 .call()
-            println("pullResult = ${pullResult}")
             open.close()
         }
 

@@ -2,8 +2,10 @@ package com.antwerkz.champions
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import org.slf4j.LoggerFactory
 import twitter4j.PagableResponseList
 import twitter4j.Twitter
+import twitter4j.TwitterException
 import twitter4j.TwitterFactory
 import twitter4j.User
 import twitter4j.conf.ConfigurationBuilder
@@ -13,6 +15,9 @@ import java.time.Instant
 import java.util.Properties
 
 class TwitterScrape(properties: Properties) {
+    companion object {
+        val LOG = LoggerFactory.getLogger(TwitterScrape::class.java)
+    }
     private val twitter: Twitter
     private val listMembers = File("java-champions.list")
 
@@ -76,7 +81,13 @@ class TwitterScrape(properties: Properties) {
 
         newFollows.forEach {
             println("adding members to list:  ${it}")
-            twitter.createUserListMembers("evanchooly", "java-champions", *it.toTypedArray())
+            it.forEach {
+                try {
+                    twitter.createUserListMembers("evanchooly", "java-champions", it)
+                } catch(e: TwitterException) {
+                    LOG.error("Error adding user '$it'")
+                }
+            }
         }
 
         loadJCList()
