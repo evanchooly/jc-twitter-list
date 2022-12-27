@@ -11,8 +11,11 @@
     <name>javachampions list manager</name>
 
     <properties>
+        <kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>1.6.0</kotlin.version>
+        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <kotlin.version>1.7.22</kotlin.version>
         <kotlin.code.style>official</kotlin.code.style>
         <junit.version>4.13.2</junit.version>
     </properties>
