@@ -46,7 +46,7 @@ class Main {
     private fun nonJCAccounts() {
         val twitterMembers = twitter.loadJCList()
         val gitMembers = git.loadJCs()
-        val erroneous = twitterMembers.values.filterNot { it in gitMembers.keys }
+        val erroneous = twitterMembers.values.filterNot { it in gitMembers.values }
         println("Accounts on twitter but not in git:")
         println("-----------------------------------")
 

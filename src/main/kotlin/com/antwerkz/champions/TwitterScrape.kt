@@ -70,9 +70,8 @@ class TwitterScrape(properties: Properties) {
         val list = loadJCList()
 
         val newFollows =
-            jcs.keys.map { it.toLowerCase() }
-            .subtract(list.map { it.value.toLowerCase() })
-            .filter { !it.contains("link-jim-gough") }
+            jcs.values.map { it.toLowerCase() }
+            .subtract(list.map { it.value.toLowerCase() }.toSet())
             .chunked(100)
 
         if (newFollows.isNotEmpty()) {
