@@ -104,11 +104,14 @@ ${mapContent(champions)}  </body>
         joinToString("<hr>", prefix = "<hr>", transform = {
             "${it.name} (${it.year})<br>" +
                     it.social.joinToString(" ") { social ->
-                        """<a href="${social.url}" alt="${social.site.name}" onmousedown="if (window.unbindTooltip) { 
-                                            window.unbindTooltip.unbind(); 
-                                            window.unbindTooltip = undefined; 
-                                            }
-                                            setTimeout(function () {window.open(\'${social.url}\', \'_blank\').focus();}, 100)">${social.site.icon()}</a>""".trimMargin()
+                        """<a href="${social.url}"
+                            onmousedown="if (window.unbindTooltip) {
+                              window.unbindTooltip.unbind(); 
+                              window.unbindTooltip = undefined; 
+                            }
+                            setTimeout(function () {
+                              window.open(\'${social.url}\', \'_blank\').focus();
+                            }, 100)">${social.site.icon()}</a>""".trimMargin()
                     }.replace("\n", "")
         })
 
