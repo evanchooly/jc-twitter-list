@@ -11,7 +11,7 @@ fun main() {
 class Main {
     private val properties = Properties()
     private val twitter: TwitterScrape
-    private val git = GitScrape()
+    private val git = GitScrape
 
     init {
         loadProperties()

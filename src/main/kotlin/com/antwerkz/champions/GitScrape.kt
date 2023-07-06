@@ -5,8 +5,8 @@ import org.yaml.snakeyaml.Yaml
 import java.io.File
 import java.io.FileReader
 
-class GitScrape {
-    private val jcGitRepo = File("target/jcs")
+object GitScrape {
+    val jcGitRepo = File("target/jcs")
 
     fun loadJCs(): Map<String, String> {
         fetchRepo()
